@@ -15,10 +15,15 @@ def get_index():
 @api.route('/posts/')
 def get_posts():
     page = request.args.get('page', 1, type=int)
+    classid = request.args.get('classid',-1,type=int)
     per_page = current_app.config['FLASKY_POSTS_PER_PAGE']
     total = Post.query.count()
+    if classid < 0:
+        return jsonify({
+            "status":400
+        })
 
-    pagination = Post.query.order_by(Post.timestamp.desc()).paginate(
+    pagination = Post.query.filter_by(class_id = classid).order_by(Post.timestamp.desc()).paginate(
         page, per_page,error_out=False)
     posts = pagination.items
     showNum = len(posts)
@@ -42,6 +47,7 @@ def get_posts():
 
 
 
+
 @api.route('/posts/<int:id>')
 def get_post(id):
     post = Post.query.get_or_404(id)
@@ -52,7 +58,7 @@ def get_post(id):
 #@permission_required(Permission.WRITE_ARTICLES)
 def new_post():
     post = Post.from_json(request.json)
-    post.author = g.current_user
+    #post.author = g.current_user
     db.session.add(post)
     db.session.commit()
 
@@ -86,17 +92,18 @@ def post_praise(id):
     #post = Post.query.get_or_404(id)
     time = None
     if request.json != [] and request.json != None:
-        time = request.json.get['timestamp']
+        time = request.json.get('timestamp')
     else:
         time = datetime.now().strftime('%Y-%m-%d %H:%M')
-    sel = post_up.select((post_up.c.post_id == id) & (post_up.c.user_id ==g.current_user.username))
+
+    sel = post_up.select((post_up.c.post_id == id) & (post_up.c.user_id ==g.current_user.id))
     rs = db.session.execute(sel).fetchall()
    # rs = sel.execute()
     if rs == []:
-        e = post_up.insert().values(post_id=id,user_id=g.current_user.username,timestamp=time)
+        e = post_up.insert().values(post_id=id,user_id=g.current_user.id,timestamp=time)
         db.session.execute(e)
     else:
-        e = post_up.delete().where(post_up.c.post_id==id and post_up.c.post_id==g.current_user.username)
+        e = post_up.delete().where(post_up.c.post_id==id and post_up.c.post_id==g.current_user.id)
         db.session.execute(e)
     return jsonify({
         "status":200
